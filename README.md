@@ -1,173 +1,276 @@
-# Polymarket AI Market Suggestor
+## OpenClaw Polymarket AI Trading Bot(BTC 5m / 15m) — CLOB Arbitrage
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python)](https://www.python.org/)
-[![LangChain](https://img.shields.io/badge/LangChain-0.3.x-1A4C82?style=flat)](https://python.langchain.com/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT-4o-412991?style=flat&logo=openai)](https://openai.com/)
-[![Typer](https://img.shields.io/badge/Typer-CLI-555?style=flat)](https://typer.tiangolo.com/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-green.svg)](LICENSE)
+**OpenClaw Polymarket AI arbitrage trading bot** for short-horizon crypto prediction markets (BTC, ETH, SOL, XRP) — built with **Node.js 20+** and **TypeScript**.
+If you are searching for **“Polymarket AI trading bot”**, **“OpenClaw trading bot”**, **“Polymarket BTC 5 minute bot”**, **“Openclaw Polymarket BTC 5 minute bot”**, **“Polymarket BTC 15 minute bot”**, or **“Polymarket CLOB bot”**, this repo is a practical starting point.
 
-[![Telegram](https://img.shields.io/badge/Telegram-@lorine93s-2CA5E0?style=flat&logo=telegram)](https://t.me/lorine93s)
-[![Twitter/X](https://img.shields.io/badge/X-@kakamajo__btc-000000?style=flat&logo=x)](https://twitter.com/kakamajo_btc)
+This bot trades **Polymarket Up/Down markets** on the **Polymarket CLOB (order book)** using the official **`@polymarket/clob-client-v2`** SDK.
+It runs **one market window at a time** (configured by coin + period, e.g. **BTC 5m** or **BTC 15m**), polls prices, applies **rule-based entry/exit strategies**, and places orders with **retries, cooldowns, and operator-friendly logging**.
+It includes an **OpenClaw-style AI decision layer** (deterministic by default, optional HTTP/LLM integration) designed for **pluggable signal research**.
+This is **automation scaffolding** for experimentation and operations — **not** a promise of “risk-free arbitrage” profits.
 
-AI-native workflow that transforms real-time trends, news, and existing Polymarket markets into actionable, publish-ready market suggestions. Built for research teams, traders, DAO governance desks, and community curators who want to discover “what market should Polymarket list next?” using a mix of LLM reasoning, sentiment signals, and overlap checks.
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20.6-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/license-ISC-lightgrey)](#license)
 
-SEO keywords: Polymarket AI, AI agent Polymarket, Polymarket AI market prediction, AI market prediction, Polymarket prediction market bot, Polymarket real-time trading bot, Polymarket AI trading bot, Polymarket market analyzer, Polymarket AI market suggestor.
+---
 
+## Table of contents
 
+- [What this bot does](#what-this-bot-does)
+- [Who this is for](#who-this-is-for)
+- [How it differs from “classic” two-window arbitrage](#how-it-differs-from-classic-two-window-arbitrage)
+- [Architecture](#architecture)
+- [Key modules](#key-modules)
+- [Quick start](#quick-start)
+- [Environment variables](#environment-variables)
+- [trade.toml reference](#tradetoml-reference)
+- [Operations and risk management](#operations-and-risk-management)
+- [Troubleshooting](#troubleshooting)
+- [Safety and compliance](#safety-and-compliance)
+- [FAQ](#faq)
+- [Keywords](#keywords-for-search--github-discovery)
 
-## Why PolySuggest AI?
+---
 
-- **Trend-aware ideation** – Combines live NewsAPI + Twitter sentiment to surface emerging narratives.
-- **Crypto momentum feed** – Adds CoinGecko trending tokens as signals for on-chain market discovery.
-- **Overlap protection** – Uses Polymarket Gamma API to ensure suggestions are novel and not already live.
-- **LLM-powered reasoning** – GPT-4o (or fallback heuristic) produces clear resolution rules, YES/NO framing, and references.
-- **Explainable output** – Each idea includes rationale, confidence scoring, and tagged metadata for filtering.
-- **Local knowledge base** – SQLite bundle store captures every run for history, analytics, and dashboards.
-- **Ready for production** – Typer CLI, structured logging, Markdown/JSON reporting, tests, Docker-friendly dependency set.
+## What this bot does
 
-> ℹ️ The AI core and workflow are inspired by leading open-source prediction market agents such as [Prediction-Market-AggregationAgent-system](https://github.com/Prithwis-AIAgent/Prediction-Market-AggregationAgent-system) while focusing on generative market ideation instead of trading.
+- **Market selection** — Builds Polymarket slugs from `[market].market_coin` and `[market].market_period` (e.g. **BTC + 5m** or **BTC + 15m** short markets).
+- **Pricing** — Polls **Gamma / CLOB**-backed pricing for **UP** and **DOWN** outcome tokens.
+- **Strategies** — Runs **`trade_1`** or **`trade_2`** rules from `trade.toml` (time/price exits, range entries, optional emergency swap after a sell).
+- **OpenClaw-style decision layer (optional)** — When enabled, runs a deterministic, explainable decision module alongside the existing rules (pluggable scaffolding; not a promise of profit).
+- **Execution** — Submits **market-style orders** via the v2 CLOB client with **instant retries only for transient errors**, **entry cooldown** after failed buys, and **friendly error summaries** (no raw stack spam).
+- **Auth** — **L1** wallet signing to **derive or create** API credentials, then **L2** authenticated client for balance and orders.
+- **Operator UX** — Startup **banner**, structured logging (**`emojiprint-logger`**), and **trend / position** legends in the console.
 
+If you are looking specifically for a **synchronized dual-window (5m + 15m) paired-leg arbitrage engine**, that is **not** what this codebase implements today; see [How it differs](#how-it-differs-from-classic-two-window-arbitrage).
+This repo is still in the same “**Polymarket arbitrage bot / Polymarket trading bot**” category people search for: **Polymarket BTC 5 minute**, **Polymarket BTC 15 minute**, and **Polymarket CLOB trading bot TypeScript**.
 
-## Architecture Overview
+---
+
+## Who this is for
+
+- Developers building or extending a **Polymarket CLOB trading bot** in **TypeScript**.
+- Traders experimenting with **short-duration Up/Down markets** (e.g. **5m / 15m**) on Polymarket with **small size** and **strict risk controls**.
+- Anyone evaluating **arbitrage-adjacent** or **rule-based** automation on **Polymarket prediction markets** (not only directional “picks”).
+
+---
+
+## How it differs from “classic” two-window arbitrage
+
+Many guides describe **cross-window** ideas (e.g. comparing **5-minute** and **15-minute** BTC markets at once, synchronized `endTime`, paired legs). **This repo** instead:
+
+- Trades **one window per running config** (`market_period` = `5`, `15`, `60`, etc.).
+- Uses **transparent `trade.toml`** thresholds (ratios, ranges) rather than a hard-coded dual-leg arbitrage engine.
+
+You can **run two processes** with two configs (e.g. one `market_period = "5"`, one `"15"`) as a **future operational pattern**; that is not bundled as a single orchestrated binary here.
+
+---
+
+## Architecture
 
 ```
-TrendScanner (NewsAPI, Twitter API)
-        │
-        ▼
-Sentiment & Keyword signals ────────┐
-                                    │
-PolymarketClient (Gamma API)        │
-        │                           │
-        ▼                           │
-Existing market snapshots ──────────┘
-        │
-        ▼
-SuggestionEngine (LangChain + GPT-4o)
-        │
-        ▼
-SuggestionBundle (Pydantic)
-        │
-        ├─ Storage (SQLite) — durable bundle history + analytics
-        ├─ CLI (Typer + Rich) — interactive reports
-        └─ Reporting utils — JSON / Markdown / history summaries
+┌─────────────────────────────────────────────────────────────────┐
+│                    index.ts (bootstrap + banner)                 │
+│  CLOB L1 → derive/create API key → CLOB L2 client               │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Market loop (per window slug)                                   │
+│  • Gamma: resolve market + token IDs                             │
+│  • Prices: poll quotes for UP / DOWN                             │
+│  • Trade.updatePrices → make_trading_decision                    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Strategy (trade_1 | trade_2)              trade/decision.ts    │
+│  • Entry gates, exits, optional emergency swap                   │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Orders + balances                     trade/trade.ts             │
+│  • createAndPostMarketOrder (FAK)                                │
+│  • Retry policy (utils/retry.ts) + trading errors (human text)   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-- `trend_scanner.py` — pulls hot news and tweets with VADER sentiment.
-- `trend_scanner.py` (crypto) — optional CoinGecko trending feed for DeFi narratives.
-- `polymarket_client.py` — fetches trending/current markets via Gamma API.
-- `ai.py` — formats context + prompts GPT-4o (falls back if no API key).
-- `orchestrator.py` — runs the end-to-end pipeline and deduplicates output.
-- `storage.py` — SQLite-backed bundle persistence.
-- `analytics.py` — portfolio-wide stats on past runs.
-- `reporting.py` — exports Markdown dashboards and history summaries.
-- `cli.py` — Typer command group: `suggest` and `summarize`.
+---
 
+## Key modules
 
-## Quick Start
+| Area | Path | Role |
+|------|------|------|
+| Entry | `src/index.ts` | Banner, CLOB auth, market loop, `Trade` lifecycle |
+| CLOB / wallet | `src/services/clob.ts` | Host, chain, signer, funder, signature type |
+| Gamma API | `src/services/gamma.ts` | Market metadata by slug |
+| Config | `src/config/toml.ts`, `src/config/env.ts`, `src/config/validateEnv.ts` | Zod-validated `trade.toml`, `.env` (with early startup validation) |
+| Slug | `src/config/slug.ts` | Coin + period → Polymarket slug |
+| Decision | `src/trade/decision.ts` | `trade_1` / `trade_2` branching |
+| Prices | `src/trade/prices.ts` | Quote polling and status lines |
+| Execution | `src/trade/trade.ts` | Buys/sells, cooldowns, balance waits |
+| Errors | `src/utils/tradingErrorMessage.ts`, `retry.ts` | Operator-friendly messages |
+| SDK noise | `src/utils/suppressClobConsole.ts` | Quiet CLOB `console.error` during key setup |
+
+---
+
+## Quick start
+
+### Prerequisites
+
+- **Node.js ≥ 20.6**
+- **Polygon** wallet with Polymarket-compatible setup (**private key** + **funder / proxy deposit address** as required by your account type)
+- Small **USDC** balance appropriate for **`trade_usd`** experiments
+
+### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-org/polymarket-ai-market-suggestor.git
-cd polymarket-ai-market-suggestor
-python -m venv .venv && source .venv/bin/activate  # or use uv/pdm
-pip install -r requirements.txt
-cp ENV.sample .env
-# populate .env with OpenAI / NewsAPI / Twitter keys
+git https://github.com/lorine93s/openclaw-polymarket-ai-arbitrage-trading-bot
+cd openclaw-polymarket-ai-arbitrage-trading-bot
+npm install
 ```
 
-### Generate Suggestions
+### 2. Environment
+
+Copy `.env.example` to `.env` and fill in secrets (**never commit `.env`**).
+The bot validates required env values on startup and will show a clear warning if your **private key** or **funder address** is missing/invalid.
+
+### 3. Strategy and market
+
+Edit **`trade.toml`**:
+
+- Set **`[market].market_period`** to **`"5"`** or **`"15"`** for **Polymarket 5 minute** or **15 minute** BTC (or other coin) windows.
+- Choose **`strategy`** = `trade_1` or `trade_2`.
+- Set **`trade_usd`**, **`max_retries`**, **`entry_buy_cooldown_sec`**.
+
+### 4. Run
 
 ```bash
-polysuggest suggest "AI safety regulation" --keywords "AI,regulation,legislation" --count 4 \
-  --markdown reports/ai-safety.md --output reports/ai-safety.json
+# Development
+npm run dev
+
+# Production-style
+npm run build
+npm start
 ```
 
-Sample console output:
+---
 
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
-┃ Title                                         ┃ Confidence ┃ Resolution Source          ┃ Tags          ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
-│ Will the EU enact the AI Act before Q4 2025?  │ 0.72       │ Official EU Parliament DB  │ ai-policy,... │
-│ ...                                           │ ...        │ ...                        │ ...           │
-└───────────────────────────────────────────────┴────────────┴────────────────────────────┴───────────────┘
-```
+## Environment variables
 
-Outputs:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `POLYMARKET_PRIVATE_KEY` | Yes | Wallet private key used to sign CLOB L1 / L2 operations |
+| `POLYMARKET_FUNDER_ADDRESS` | Yes | Funder / deposit (proxy) address that holds trading collateral |
+| `PROXY_WALLET_ADDRESS` | Alternate | **Alias**: accepted by the loader if `POLYMARKET_FUNDER_ADDRESS` is unset |
+| `POLYMARKET_SIGNATURE_TYPE` | No | `EOA` · `POLY_PROXY` · `POLY_GNOSIS_SAFE` · `POLY_1271`. Defaults to proxy-friendly behavior when omitted |
 
-- `reports/ai-safety.json` – structured `SuggestionBundle`.
-- `reports/ai-safety.md` – Markdown one-pager for sharing.
-- SQLite bundle store (default `data/bundles.db`) captures a full copy for analytics.
+See **`.env.example`** for commented templates.
 
-### Summarize History
+**Related queries:** *Polymarket API credentials*, *Polymarket CLOB wallet setup*, *Polymarket trading bot environment variables*, *Polymarket private key invalid byteslike*.
 
-```bash
-polysuggest summarize reports/
-```
+---
 
-Displays a Rich table of prior suggestion runs (topic, timestamp, top pick, confidence).
+## trade.toml reference
 
-To use the built-in storage instead:
+| Key | Meaning |
+|-----|--------|
+| `strategy` | `trade_1` or `trade_2` |
+| `trade_usd` | Notional per buy (USD) |
+| `max_retries` | Transient-error retries (network / 5xx / 429) |
+| `entry_buy_cooldown_sec` | Pause before retrying **entry** after a failed buy |
+| `[openclaw]` | Optional OpenClaw-style decision engine settings (enabled/thresholds/lookback) |
+| `[market].market_coin` | `btc`, `eth`, `sol`, `xrp` |
+| `[market].market_period` | `5`, `15`, `60`, `240`, `1440` |
+| `[trade_1]`, `[trade_2]` | Strategy parameters (see Zod schema in `src/config/toml.ts`) |
 
-```bash
-polysuggest summarize
-```
+To emphasize **Polymarket BTC 5 minute** vs **Polymarket BTC 15 minute**, change only **`market_period`** (and optionally `market_coin`).
 
-### Inspect & Analyze
+---
 
-```bash
-polysuggest show 3        # Detailed view for run #3
-polysuggest insights      # Aggregated stats (top tags, avg confidence, sentiment)
-```
+## OpenClaw-style AI decision layer
 
+This repo includes an **optional OpenClaw-style decision module** designed to be **pluggable**, **testable**, and **operator-explainable**.
+It is **not** a generic ML framework and it does **not** promise “risk-free arbitrage”.
 
-## Configuration
+- **Default behavior preserved**: If `[openclaw].enabled = false`, the bot behaves exactly as before using `trade_1` / `trade_2`.
+- **What it consumes**: current UP/DOWN quotes, a small in-memory lookback window of recent quotes, time-to-expiry, position state, and thresholds from `trade.toml`.
+- **What it produces**: high-level actions like `BUY_UP`, `BUY_DOWN`, `CLOSE_POSITION`, `HOLD` with a reason string (logged in the console).
+- **Safety gates**: the signal is still subject to existing bot risk controls (cooldowns, `hasBought`, retries, etc.). If an action isn’t allowed, the bot simply won’t place the order.
 
-Environment variables (copy `ENV.sample`):
+Config block in `trade.toml`:
 
-| Variable | Description | Example |
-| --- | --- | --- |
-| `OPENAI_API_KEY` | GPT-4o API key for suggestion engine | `sk-...` |
-| `OPENAI_MODEL` | Override model | `gpt-4o-mini` |
-| `POLYMARKET_API_BASE` | Gamma API endpoint | `https://gamma-api.polymarket.com` |
-| `NEWS_API_KEY` | NewsAPI key (optional) | `news-...` |
-| `TWITTER_BEARER_TOKEN` | Twitter v2 bearer token (optional) | `AAAAAAAA...` |
-| `DEFAULT_TREND_KEYWORDS` | Fallback keywords | `polymarket, ai, elections` |
-| `CHROMA_PERSIST_PATH` | Future use for RAG vector store | `.chroma` |
-| `POLYSUGGEST_DATA_DIR` | Directory for SQLite bundle storage | `data` |
+```toml
+[openclaw]
+enabled = true
+mode = "deterministic" # or "http"
+min_edge_bps = 50
+max_spread_bps = 200
+lookback_points = 12
 
-No LLM key? The system falls back to a deterministic heuristic generator so pipelines remain testable offline.
-
-
-## Roadmap
-
-- Integrate Tavily/NewsCatcher for better global news coverage.
-- Plug in CrewAI/agent voting for multi-model consensus.
-- Streamlit dashboard for live market ideation boards.
-- Optional Polymarket CLOB integration to auto-submit community market suggestions.
-- RAG knowledge base seeded with past Polymarket markets and governance posts.
-
-
-## Development & Testing
-
-```bash
-pip install -r requirements.txt
-pytest
+# Optional: OpenClaw HTTP/LLM integration (mode="http")
+# [openclaw.http]
+# url = "https://your-openclaw-service.example.com/decide"
+# bearer_token = "optional"
+# timeout_ms = 2500
 ```
 
-To run the CLI inside the repo without installing:
+---
 
-```bash
-python -m polysuggest.cli suggest "US election turnout"
-```
+## Operations and risk management
 
-Logging is powered by Loguru; set `LOGURU_LEVEL=DEBUG` for verbose traces.
+- Start with **low `trade_usd`** and verify **fills**, **balances**, and **logs**.
+- **Execution risk** remains: partial fills, API errors, and fast-moving **5m / 15m** books can move against you between signal and fill.
+- **`entry_buy_cooldown_sec`** reduces tight loops when a failure is **not** transient (e.g. credential / signing issues).
+- Prefer a **dedicated wallet** and balance you can afford to lose.
 
-Dockerfile coming soon (project is fully dependency-pinned via `requirements.txt` / `pyproject.toml`).
+---
 
-## Need help or collaboration?
+## Troubleshooting
 
-- 📧 xsui46941@gmail.com
-- 📣 Telegram: [@lorine93s](https://t.me/lorine93s)
-- 🐦 X (Twitter): [@kakamajo_btc](https://twitter.com/kakamajo_btc)
+| Symptom | What to check |
+|---------|----------------|
+| `Could not derive api key` (suppressed raw log) | Normal on first run; bot should **create** a key next. If both fail: wallet / signature type / Polymarket account. |
+| L2 / HMAC / `ERR_INVALID_ARG_TYPE` | Incomplete **API credentials** on the client (e.g. missing secret). Re-run auth; verify client is constructed with full `creds` after L1. |
+| No trades | `trade_2` **entry** gates (time ratio + price range); **`hasBought`**; **`entryBuyCooldownUntil`** after failures. |
+| Auth / 401 | Funder vs signer mismatch, wrong **`POLYMARKET_SIGNATURE_TYPE`**, or blocked API access. |
 
-Let’s build the next generation of AI-native Polymarket tooling together.
+---
+
+## Safety and compliance
+
+- This software **places real orders** when configured with live keys and a funded account.
+- **No warranty**. Past or hypothetical **arbitrage** edges do not guarantee future results.
+- Comply with **local laws**, **Polymarket Terms of Service**, and eligibility rules in your jurisdiction.
+- **Never** commit private keys or paste them into support chats.
+
+---
+
+## FAQ
+
+**Is this a “risk-free Polymarket arbitrage bot”?**  
+No automated strategy is risk-free. This project automates **rules and execution**; **slippage**, **failed legs**, and **operational bugs** can lose money.
+
+**Is this specifically a Polymarket BTC 5 minute market bot?**  
+You configure **`market_period = "5"`** (and `market_coin = "btc"`) for that use case. The same code path supports **15m** and other periods.
+
+**Does it run Polymarket WebSocket feeds?**  
+The core loop described here uses **polling** for prices; dependencies may include WS-oriented packages for future extension — check `src/` for actual usage.
+
+**Can I use it for ETH / SOL Polymarket markets?**  
+Yes — set **`market_coin`** in `trade.toml`.
+
+---
+
+## Keywords
+
+Common search terms this repo targets:
+
+`polymarket trading bot`, `polymarket arbitrage bot`, `polymarket btc trading bot`, `polymarket btc arbitrage bot`, `polymarket clob bot`, `polymarket clob trading bot`, `polymarket orderbook bot`, `@polymarket/clob-client-v2`, `polymarket api key`, `polymarket market making bot`, `polymarket up down bot`, `polymarket 5 minute bot`, `polymarket 5m btc`, `polymarket 15 minute bot`, `polymarket 15m btc`, `polymarket typescript bot`, `polymarket nodejs bot`, `prediction market trading bot`, `crypto prediction market bot`, `openclaw prediction market bot`, `openclaw polymarket trading bot`, `openclaw ai prediction market bot`, `openclaw prediction market bot`, 
+
+---
+
+## License
+
+ISC — see [`package.json`](package.json). Use at your own risk.
