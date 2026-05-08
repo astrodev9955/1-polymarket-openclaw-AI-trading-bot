@@ -1,12 +1,8 @@
 ## OpenClaw Polymarket AI Trading Bot(BTC 5m / 15m) — CLOB Arbitrage
 
-**OpenClaw Polymarket AI arbitrage trading bot** for short-horizon crypto prediction markets (BTC, ETH, SOL, XRP) — built with **Node.js 20+** and **TypeScript**.
-If you are searching for **“Polymarket AI trading bot”**, **“OpenClaw trading bot”**, **“Polymarket BTC 5 minute bot”**, **“Openclaw Polymarket BTC 5 minute bot”**, **“Polymarket BTC 15 minute bot”**, or **“Polymarket CLOB bot”**, this repo is a practical starting point.
-
-This bot trades **Polymarket Up/Down markets** on the **Polymarket CLOB (order book)** using the official **`@polymarket/clob-client-v2`** SDK.
-It runs **one market window at a time** (configured by coin + period, e.g. **BTC 5m** or **BTC 15m**), polls prices, applies **rule-based entry/exit strategies**, and places orders with **retries, cooldowns, and operator-friendly logging**.
-It includes an **OpenClaw-style AI decision layer** (deterministic by default, optional HTTP/LLM integration) designed for **pluggable signal research**.
-This is **automation scaffolding** for experimentation and operations — **not** a promise of “risk-free arbitrage” profits.
+OpenClaw‑enhanced Polymarket AI trading and arbitrage bot designed for BTC 5m/15m Up/Down markets on the Polymarket CLOB.  
+A TypeScript/Node.js system that automates short‑horizon prediction‑market trading using deterministic rule‑based logic, with an optional HTTP/LLM OpenClaw decision engine for signal experimentation.
+Includes strict risk‑management gates (cooldowns, retries, safety locks), continuous market polling, structured decision flow, and clear operator‑focused logging for reliable live or paper‑mode operation.
 
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.6-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)

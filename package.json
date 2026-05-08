@@ -2,7 +2,7 @@
   "name": "openclaw-polymarket-ai-arbitrage-bot",
   "version": "1.0.0",
   "type": "commonjs",
-  "description": "OpenClaw Polymarket AI trading bot — BTC 5m/15m CLOB automation with OpenClaw-style decision engine (deterministic + optional HTTP/LLM), risk gates, retries, and operator logging",
+  "description": "OpenClaw Polymarket AI trading bot \u2014 BTC 5m/15m CLOB automation with OpenClaw-style decision engine (deterministic + optional HTTP/LLM), risk gates, retries, and operator logging",
   "keywords": [
     "polymarket",
     "polymarket-ai-trading-bot",
@@ -59,11 +59,12 @@
     "@iarna/toml": "^2.2.5",
     "@polymarket/clob-client-v2": "^1.0.3",
     "@tensorflow/tfjs": "^4.22.0",
-    "emojiprint-logger": "^5.6.0",
     "@types/ws": "^8.18.1",
     "ccxt": "^4.5.36",
     "dotenv": "^16.4.5",
+    "emojiprint-logger": "^5.6.0",
     "ethers": "^6.16.0",
+    "node-fetch": "^3.3.2",
     "ws": "^8.19.0",
     "zod": "^4.3.5"
   },
